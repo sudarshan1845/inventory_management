@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Make Sale{% endblock %}
+{% block content %}
+<h1>🛒 Make Sale</h1>
+<form class="form-card" method="POST" id="sale-form">
+  <label>Customer Name (optional)</label>
+  <input type="text" name="customer_name" placeholder="Walk-in Customer">
+
+  <table class="data-table" id="line-items">
+    <tr><th>Product</th><th>Available</th><th>Price</th><th>Quantity</th><th></th></tr>
+  </table>
+  <button type="button" class="btn secondary" onclick="addRow()">+ Add Item</button>
+
+  <h3>Total: ₹<span id="total">0.00</span></h3>
+  <button class="btn" type="submit">Complete Sale</button>
+  <a class="btn secondary" href="{{ url_for('sales') }}">Cancel</a>
+</form>
+
+<script>
+const PRODUCTS = {{ products|tojson }};
+
+function addRow() {
+  const table = document.getElementById('line-items');
+  const row = document.createElement('tr');
+  let options = '<option value="">-- Select Product --</option>';
+  PRODUCTS.forEach(p => options += `<option value="${p.id}" data-price="${p.price}" data-qty="${p.quantity}">${p.name}</option>`);
+  row.innerHTML = `
+    <td><select name="product_id[]" onchange="updateRow(this)" required>${options}</select></td>
+    <td class="avail">-</td>
+    <td class="price">-</td>
+    <td><input type="number" name="quantity[]" min="1" value="1" onchange="calcTotal()" required></td>
+    <td><a href="#" onclick="this.closest('tr').remove(); calcTotal(); return false;">✕</a></td>
+  `;
+  table.appendChild(row);
+}
+
+function updateRow(select) {
+  const opt = select.selectedOptions[0];
+  const row = select.closest('tr');
+  row.querySelector('.avail').textContent = opt.dataset.qty || '-';
+  row.querySelector('.price').textContent = opt.dataset.price ? '₹' + opt.dataset.price : '-';
+  row.querySelector('input[name="quantity[]"]').max = opt.dataset.qty || 999;
+  calcTotal();
+}
+
+function calcTotal() {
+  let total = 0;
+  document.querySelectorAll('#line-items tr').forEach(row => {
+    const select = row.querySelector('select');
+    const qtyInput = row.querySelector('input[name="quantity[]"]');
+    if (select && select.value && qtyInput) {
+      const price = parseFloat(select.selectedOptions[0].dataset.price || 0);
+      total += price * parseFloat(qtyInput.value || 0);
+    }
+  });
+  document.getElementById('total').textContent = total.toFixed(2);
+}
+
+addRow(); // start with one row
+</script>
+{% endblock %}

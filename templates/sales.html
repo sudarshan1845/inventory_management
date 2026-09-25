@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Sales{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Sales</h1>
+  <div>
+    <a class="btn" href="{{ url_for('new_sale') }}">+ Make Sale</a>
+    <a class="btn secondary" href="{{ url_for('export_sales') }}">⬇ Export CSV</a>
+  </div>
+</div>
+<table class="data-table">
+  <tr><th>Invoice No</th><th>Customer</th><th>Total</th><th>Date</th><th>Invoice</th></tr>
+  {% for s in sales %}
+  <tr>
+    <td>{{ s.invoice_no }}</td><td>{{ s.customer_name }}</td><td>₹{{ s.total_amount }}</td>
+    <td>{{ s.created_at }}</td>
+    <td><a href="{{ url_for('invoice', sale_id=s.id) }}">🧾 View</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">No sales recorded yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

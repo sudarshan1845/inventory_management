@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Invoice {{ sale.invoice_no }}{% endblock %}
+{% block content %}
+<div class="invoice-card" id="printable">
+  <h1>🧾 Invoice</h1>
+  <p><b>Invoice No:</b> {{ sale.invoice_no }}</p>
+  <p><b>Customer:</b> {{ sale.customer_name }}</p>
+  <p><b>Date:</b> {{ sale.created_at }}</p>
+  <table class="data-table">
+    <tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
+    {% for i in items %}
+    <tr>
+      <td>{{ i.name }}</td><td>{{ i.quantity }}</td><td>₹{{ i.price }}</td>
+      <td>₹{{ "%.2f"|format(i.quantity * i.price) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <h2>Total: ₹{{ sale.total_amount }}</h2>
+</div>
+<button class="btn" onclick="window.print()">🖨️ Print Invoice</button>
+<a class="btn secondary" href="{{ url_for('sales') }}">Back to Sales</a>
+{% endblock %}

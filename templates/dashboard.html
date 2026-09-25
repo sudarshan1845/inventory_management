@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <span class="muted">{{ todays_sales|length }} sale(s) today</span>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card accent-blue">
+    <span class="stat-icon">📦</span>
+    <span class="stat-label">Total Products</span>
+    <span class="stat-value">{{ total_products }}</span>
+  </div>
+  <div class="stat-card accent-green">
+    <span class="stat-icon">💰</span>
+    <span class="stat-label">Stock Value</span>
+    <span class="stat-value">₹{{ "%.2f"|format(stock_value) }}</span>
+  </div>
+  <div class="stat-card accent-purple">
+    <span class="stat-icon">🛒</span>
+    <span class="stat-label">Today's Sales</span>
+    <span class="stat-value">₹{{ "%.2f"|format(total_sales_today) }}</span>
+  </div>
+  <div class="stat-card accent-orange">
+    <span class="stat-icon">⚠️</span>
+    <span class="stat-label">Low Stock Items</span>
+    <span class="stat-value">{{ low_stock|length }}</span>
+  </div>
+</div>
+
+<div class="panel-grid">
+  <div class="panel">
+    <h3>📈 Sales - Last 7 Days</h3>
+    <canvas id="salesChart" height="160"></canvas>
+  </div>
+  <div class="panel">
+    <h3>📊 Stock by Category</h3>
+    <canvas id="stockChart" height="160"></canvas>
+  </div>
+</div>
+
+<div class="panel-grid" style="margin-top:18px;">
+  <div class="panel">
+    <h3>🧾 Today's Sales</h3>
+    {% if todays_sales %}
+    <table>
+      <tr><th>Invoice No</th><th>Customer</th><th>Amount</th><th>Time</th></tr>
+      {% for s in todays_sales %}
+      <tr>
+        <td><a href="{{ url_for('invoice', sale_id=s.id) }}">{{ s.invoice_no }}</a></td>
+        <td>{{ s.customer_name }}</td>
+        <td>₹{{ s.total_amount }}</td>
+        <td>{{ s.created_at.strftime('%I:%M %p') }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">No sales recorded yet today.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>⚠️ Low Stock Alert</h3>
+    {% if low_stock %}
+    <table>
+      <tr><th>Product</th><th>Qty</th><th>Min Stock</th></tr>
+      {% for p in low_stock %}
+      <tr><td>{{ p.name }}</td><td class="danger">{{ p.quantity }}</td><td>{{ p.min_stock }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">All products are sufficiently stocked. ✅</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if grocery_expiry %}
+<div class="panel" style="margin-top:18px; border-left:4px solid var(--danger);">
+  <h3>🥦 Grocery Expiry Reminder (next 7 days)</h3>
+  <table>
+    <tr><th>Product</th><th>Expiry Date</th><th>Status</th></tr>
+    {% for p in grocery_expiry %}
+    <tr>
+      <td>{{ p.name }}</td>
+      <td class="{{ 'danger' if p.expiry_date < today else 'warn-text' }}">{{ p.expiry_date }}</td>
+      <td>{% if p.expiry_date < today %}<span class="danger">Expired</span>{% else %}<span class="warn-text">Expiring soon</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if expiring_soon %}
+<div class="panel" style="margin-top:18px;">
+  <h3>⏰ Expiry Alert - All Categories (next 30 days)</h3>
+  <table>
+    <tr><th>Product</th><th>Expiry Date</th></tr>
+    {% for p in expiring_soon %}
+    <tr><td>{{ p.name }}</td><td class="warn-text">{{ p.expiry_date }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+async function loadDashboardCharts() {
+  const salesRes = await fetch("{{ url_for('api_sales_last7') }}");
+  const sales = await salesRes.json();
+  new Chart(document.getElementById('salesChart'), {
+    type: 'line',
+    data: { labels: sales.labels, datasets: [{ label: 'Sales (₹)', data: sales.values,
+            borderColor: '#4f7cff', backgroundColor: 'rgba(79,124,255,0.15)', fill: true, tension: 0.3 }] },
+    options: { plugins: { legend: { display: false } } }
+  });
+
+  const stockRes = await fetch("{{ url_for('api_stock_by_category') }}");
+  const stock = await stockRes.json();
+  new Chart(document.getElementById('stockChart'), {
+    type: 'doughnut',
+    data: { labels: stock.labels, datasets: [{ data: stock.values,
+            backgroundColor: ['#4f7cff','#ff8a4f','#4fd18b','#ffd24f','#d14fff','#4fd1c5','#ff6f91'] }] }
+  });
+}
+loadDashboardCharts();
+</script>
+{% endblock %}

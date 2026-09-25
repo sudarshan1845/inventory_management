@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Suppliers{% endblock %}
+{% block content %}
+<h1>Suppliers</h1>
+<form class="form-card" method="POST">
+  <label>Name</label>
+  <input type="text" name="name" required>
+  <div class="form-row">
+    <div><label>Contact</label><input type="text" name="contact"></div>
+    <div><label>Email</label><input type="email" name="email"></div>
+  </div>
+  <label>Address</label>
+  <input type="text" name="address">
+  <button class="btn" type="submit">+ Add Supplier</button>
+</form>
+
+<table class="data-table">
+  <tr><th>Name</th><th>Contact</th><th>Email</th><th>Address</th><th>Actions</th></tr>
+  {% for s in suppliers %}
+  <tr>
+    <td>{{ s.name }}</td><td>{{ s.contact or '-' }}</td><td>{{ s.email or '-' }}</td><td>{{ s.address or '-' }}</td>
+    <td class="actions"><a href="{{ url_for('delete_supplier', sid=s.id) }}" onclick="return confirm('Delete supplier?')">🗑️</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">No suppliers yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %} 
+{% block title %}Categories{% endblock %} 
+{% block content %} 
+<h1>Categories</h1> 
+<form class="inline-form" method="POST"> 
+  <input type="text" name="name" placeholder="New category name" required> 
+  <button class="btn" type="submit">+ Add</button> 
+</form> 
+ 
+{% set icons = {'Electronics':'💻','Accessories':'🔌','Bags':'🎒','Stationery':'✏️', 
+  'Office Supplies':'🗂️','Electrical':'💡','Appliances':'🔥','Kitchen':'🍽️', 
+  'Furniture':'🪑','Computer Parts':'🖥️','Storage':'💾','Printer Supplies':'🖨️', 
+  'Grocery':'🛒','Clothing':'👕'} %} 
+ 
+<div class="category-grid"> 
+  {% for c in categories %} 
+  <a class="category-card" href="{{ url_for('products', category=c.id) }}"> 
+    <span class="cat-icon">{{ icons.get(c.name, '📁') }}</span> 
+    <span class="cat-name">{{ c.name }}</span> 
+    <span class="cat-meta">{{ c.product_count }} product(s) · {{ c.total_stock }} in stock</span> 
+    <span class="cat-delete" onclick="event.preventDefault(); event.stopPropagation(); if(confirm('Delete category?')) window.location='{{ url_for('delete_category', cid=c.id) }}';">🗑️</span> 
+  </a> 
+  {% else %} 
+  <p class="muted">No categories yet.</p> 
+  {% endfor %} 
+</div> 
+ 
+{% endblock %}

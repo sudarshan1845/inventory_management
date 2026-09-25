@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Login - InvenTrack{% endblock %}
+{% block content_noauth %}
+<div class="login-wrap">
+  <form class="login-card" method="POST">
+    <h1>📦 InvenTrack</h1>
+    <p class="sub">Inventory Management System</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="flash {{ category }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <label>Username</label>
+    <input type="text" name="username" required autofocus>
+    <label>Password</label>
+    <input type="password" name="password" required>
+    <button type="submit">Login</button>
+    <p class="hint">Default admin: <b>admin</b> / <b>admin123</b></p>
+  </form>
+</div>
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+{% endblock %}
