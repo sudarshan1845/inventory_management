@@ -1,50 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Reports{% endblock %}
 {% block content %}
-<h1>📈 Reports & Charts</h1>
-
-<div class="panel-grid">
-  <div class="panel">
-    <h3>Sales - Last 7 Days</h3>
-    <canvas id="salesChart"></canvas>
+<div class="page-header">
+  <div>
+    <h1>📈 Reports & Analytics</h1>
+    <p class="page-sub">Sales performance, stock distribution and best sellers</p>
   </div>
-  <div class="panel">
-    <h3>Stock by Category</h3>
-    <canvas id="stockChart"></canvas>
-  </div>
-  <div class="panel">
-    <h3>Top 5 Selling Products</h3>
-    <canvas id="topChart"></canvas>
+  <div>
+    <a class="btn secondary" href="{{ url_for('export_products') }}">⬇ Stock CSV</a>
+    <a class="btn secondary" href="{{ url_for('export_sales') }}">⬇ Sales CSV</a>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<div class="panel-grid">
+  <div class="panel"><h3>Sales – Last 7 Days</h3><div class="chart" id="salesChart"></div></div>
+  <div class="panel"><h3>Stock Units by Category</h3><div class="chart" id="stockChart"></div></div>
+</div>
+<div class="panel-grid">
+  <div class="panel"><h3>Stock Value by Category (₹)</h3><div class="chart" id="valueChart"></div></div>
+  <div class="panel"><h3>Top 5 Selling Products</h3><div class="chart" id="topChart"></div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-async function loadCharts() {
-  const salesRes = await fetch("{{ url_for('api_sales_last7') }}");
-  const sales = await salesRes.json();
-  new Chart(document.getElementById('salesChart'), {
-    type: 'line',
-    data: { labels: sales.labels, datasets: [{ label: 'Sales (₹)', data: sales.values,
-            borderColor: '#4f7cff', backgroundColor: 'rgba(79,124,255,0.15)', fill: true, tension: 0.3 }] }
-  });
-
-  const stockRes = await fetch("{{ url_for('api_stock_by_category') }}");
-  const stock = await stockRes.json();
-  new Chart(document.getElementById('stockChart'), {
-    type: 'doughnut',
-    data: { labels: stock.labels, datasets: [{ data: stock.values,
-            backgroundColor: ['#4f7cff','#ff8a4f','#4fd18b','#ffd24f','#d14fff'] }] }
-  });
-
-  const topRes = await fetch("{{ url_for('api_top_products') }}");
-  const top = await topRes.json();
-  new Chart(document.getElementById('topChart'), {
-    type: 'bar',
-    data: { labels: top.labels, datasets: [{ label: 'Units Sold', data: top.values,
-            backgroundColor: '#4f7cff' }] }
-  });
-}
-loadCharts();
+  const D = {{ charts|tojson }};
+  Charts.line('salesChart', D.sales_labels, D.sales_values, {prefix: '₹'});
+  Charts.donut('stockChart', D.cat_labels, D.cat_qty, {center: 'units in stock'});
+  Charts.donut('valueChart', D.cat_labels, D.cat_val, {prefix: '₹', center: 'stock value'});
+  Charts.hbar('topChart', D.top_labels, D.top_values, {});
 </script>
 {% endblock %}

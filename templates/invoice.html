@@ -5,6 +5,7 @@
   <h1>🧾 Invoice</h1>
   <p><b>Invoice No:</b> {{ sale.invoice_no }}</p>
   <p><b>Customer:</b> {{ sale.customer_name }}</p>
+  <p><b>Served by:</b> {{ sale.staff_name or '-' }}</p>
   <p><b>Date:</b> {{ sale.created_at }}</p>
   <table class="data-table">
     <tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>

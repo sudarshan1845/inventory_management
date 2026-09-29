@@ -1,61 +1,88 @@
 {% extends "base.html" %}
 {% block title %}Make Sale{% endblock %}
 {% block content %}
-<h1>🛒 Make Sale</h1>
-<form class="form-card" method="POST" id="sale-form">
-  <label>Customer Name (optional)</label>
-  <input type="text" name="customer_name" placeholder="Walk-in Customer">
+<div class="page-header">
+  <div>
+    <h1>🛒 Make Sale</h1>
+    <p class="page-sub">Pick products, set quantities — stock reduces automatically</p>
+  </div>
+</div>
 
-  <table class="data-table" id="line-items">
-    <tr><th>Product</th><th>Available</th><th>Price</th><th>Quantity</th><th></th></tr>
-  </table>
-  <button type="button" class="btn secondary" onclick="addRow()">+ Add Item</button>
+<form method="POST" id="sale-form">
+  <div class="form-card wide">
+    <div class="form-row">
+      <div><label>Customer Name (optional)</label><input type="text" name="customer_name" placeholder="Walk-in Customer"></div>
+      <div><label>Quick add product</label>
+        <select id="quick" onchange="quickAdd(this)">
+          <option value="">🔍 Choose a product to add…</option>
+        </select>
+      </div>
+    </div>
 
-  <h3>Total: ₹<span id="total">0.00</span></h3>
-  <button class="btn" type="submit">Complete Sale</button>
-  <a class="btn secondary" href="{{ url_for('sales') }}">Cancel</a>
+    <div class="table-scroll" style="margin-top:16px">
+    <table class="data-table" id="line-items">
+      <thead><tr><th style="min-width:210px">Product</th><th>Category</th><th>In Stock</th><th>Price</th><th style="width:90px">Qty</th><th>Subtotal</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+    <button type="button" class="btn secondary" onclick="addRow()">+ Add another item</button>
+    <div class="mini-stat"><span>Items: <b id="items">0</b></span><span>Units: <b id="units">0</b></span></div>
+
+    <div class="total-bar">
+      <div><div style="opacity:.8;font-size:13px">Grand Total</div><div class="amount">₹<span id="total">0.00</span></div></div>
+      <button class="btn" type="submit">✅ Complete Sale &amp; Print Bill</button>
+    </div>
+  </div>
 </form>
+{% endblock %}
 
+{% block scripts %}
 <script>
 const PRODUCTS = {{ products|tojson }};
+const tbody = document.querySelector('#line-items tbody');
+const quick = document.getElementById('quick');
+PRODUCTS.forEach(p => quick.insertAdjacentHTML('beforeend', `<option value="${p.id}">${p.name} — ₹${p.price} (${p.quantity} left)</option>`));
 
-function addRow() {
-  const table = document.getElementById('line-items');
+function addRow(pid) {
   const row = document.createElement('tr');
   let options = '<option value="">-- Select Product --</option>';
-  PRODUCTS.forEach(p => options += `<option value="${p.id}" data-price="${p.price}" data-qty="${p.quantity}">${p.name}</option>`);
+  PRODUCTS.forEach(p => options += `<option value="${p.id}" data-price="${p.price}" data-qty="${p.quantity}" data-min="${p.min_stock}" data-cat="${p.category_name || '-'}" ${String(p.id)===String(pid)?'selected':''}>${p.name}</option>`);
   row.innerHTML = `
     <td><select name="product_id[]" onchange="updateRow(this)" required>${options}</select></td>
-    <td class="avail">-</td>
-    <td class="price">-</td>
-    <td><input type="number" name="quantity[]" min="1" value="1" onchange="calcTotal()" required></td>
-    <td><a href="#" onclick="this.closest('tr').remove(); calcTotal(); return false;">✕</a></td>
-  `;
-  table.appendChild(row);
+    <td class="cat">-</td><td class="avail">-</td><td class="price">-</td>
+    <td><input type="number" name="quantity[]" min="1" value="1" oninput="calc()" required></td>
+    <td class="sub"><b>₹0.00</b></td>
+    <td><a href="#" onclick="this.closest('tr').remove(); calc(); return false;" title="Remove">✕</a></td>`;
+  tbody.appendChild(row);
+  updateRow(row.querySelector('select'));
 }
-
+function quickAdd(sel) { if (sel.value) { addRow(sel.value); sel.value = ''; } }
 function updateRow(select) {
-  const opt = select.selectedOptions[0];
-  const row = select.closest('tr');
-  row.querySelector('.avail').textContent = opt.dataset.qty || '-';
-  row.querySelector('.price').textContent = opt.dataset.price ? '₹' + opt.dataset.price : '-';
-  row.querySelector('input[name="quantity[]"]').max = opt.dataset.qty || 999;
-  calcTotal();
+  const o = select.selectedOptions[0], row = select.closest('tr'), q = row.querySelector('input');
+  row.querySelector('.cat').textContent = o.dataset.cat || '-';
+  const stock = o.dataset.qty;
+  row.querySelector('.avail').innerHTML = stock ? `<span class="badge ${+stock <= +o.dataset.min ? 'low' : 'ok'}">${stock}</span>` : '-';
+  row.querySelector('.price').textContent = o.dataset.price ? '₹' + o.dataset.price : '-';
+  q.max = stock || 9999;
+  calc();
 }
-
-function calcTotal() {
-  let total = 0;
-  document.querySelectorAll('#line-items tr').forEach(row => {
-    const select = row.querySelector('select');
-    const qtyInput = row.querySelector('input[name="quantity[]"]');
-    if (select && select.value && qtyInput) {
-      const price = parseFloat(select.selectedOptions[0].dataset.price || 0);
-      total += price * parseFloat(qtyInput.value || 0);
+function calc() {
+  let total = 0, units = 0, items = 0;
+  tbody.querySelectorAll('tr').forEach(row => {
+    const s = row.querySelector('select'), q = row.querySelector('input');
+    let sub = 0;
+    if (s.value) {
+      const qty = Math.min(parseInt(q.value || 0), parseInt(s.selectedOptions[0].dataset.qty));
+      sub = parseFloat(s.selectedOptions[0].dataset.price) * (qty || 0);
+      units += qty || 0; items++;
     }
+    row.querySelector('.sub').innerHTML = '<b>₹' + sub.toFixed(2) + '</b>';
+    total += sub;
   });
   document.getElementById('total').textContent = total.toFixed(2);
+  document.getElementById('units').textContent = units;
+  document.getElementById('items').textContent = items;
 }
-
-addRow(); // start with one row
+addRow();
 </script>
 {% endblock %}

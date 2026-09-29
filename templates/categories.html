@@ -1,28 +1,56 @@
-{% extends "base.html" %} 
-{% block title %}Categories{% endblock %} 
-{% block content %} 
-<h1>Categories</h1> 
-<form class="inline-form" method="POST"> 
-  <input type="text" name="name" placeholder="New category name" required> 
-  <button class="btn" type="submit">+ Add</button> 
-</form> 
- 
-{% set icons = {'Electronics':'💻','Accessories':'🔌','Bags':'🎒','Stationery':'✏️', 
-  'Office Supplies':'🗂️','Electrical':'💡','Appliances':'🔥','Kitchen':'🍽️', 
-  'Furniture':'🪑','Computer Parts':'🖥️','Storage':'💾','Printer Supplies':'🖨️', 
-  'Grocery':'🛒','Clothing':'👕'} %} 
- 
-<div class="category-grid"> 
-  {% for c in categories %} 
-  <a class="category-card" href="{{ url_for('products', category=c.id) }}"> 
-    <span class="cat-icon">{{ icons.get(c.name, '📁') }}</span> 
-    <span class="cat-name">{{ c.name }}</span> 
-    <span class="cat-meta">{{ c.product_count }} product(s) · {{ c.total_stock }} in stock</span> 
-    <span class="cat-delete" onclick="event.preventDefault(); event.stopPropagation(); if(confirm('Delete category?')) window.location='{{ url_for('delete_category', cid=c.id) }}';">🗑️</span> 
-  </a> 
-  {% else %} 
-  <p class="muted">No categories yet.</p> 
-  {% endfor %} 
-</div> 
- 
+{% extends "base.html" %}
+{% block title %}Categories{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>🏷️ Categories</h1>
+    <p class="page-sub">Click a category to see all its products and stock</p>
+  </div>
+</div>
+<form class="inline-form" method="POST">
+  <input type="text" name="name" placeholder="New category name" required>
+  <button class="btn" type="submit" style="margin-top:0">+ Add Category</button>
+</form>
+
+{% set icons = {'Electronics':'💻','Accessories':'🔌','Bags':'🎒','Stationery':'✏️',
+  'Office Supplies':'🗂️','Electrical':'💡','Appliances':'🔥','Kitchen':'🍽️',
+  'Furniture':'🪑','Computer Parts':'🖥️','Storage':'💾','Printer Supplies':'🖨️',
+  'Grocery':'🛒','Clothing':'👕'} %}
+
+<div class="category-grid">
+  {% for c in categories %}
+  <a class="category-card" href="{{ url_for('products', category=c.id) }}">
+    <span class="cat-icon">{{ icons.get(c.name, '📁') }}</span>
+    <span class="cat-name">{{ c.name }}</span>
+    <span class="cat-meta">{{ c.product_count }} product(s) · {{ c.total_stock }} units in stock</span>
+    <span class="cat-delete" onclick="event.preventDefault(); event.stopPropagation(); if(confirm('Delete category?')) window.location='{{ url_for('delete_category', cid=c.id) }}';">🗑️</span>
+  </a>
+  {% else %}
+  <p class="muted">No categories yet.</p>
+  {% endfor %}
+</div>
+
+{% if required_by_category %}
+<div class="section-title">
+  <h2 style="margin:0">🛎️ Restock Priority List</h2>
+  <span class="pill">{{ required_by_category.values()|map('length')|sum }} items</span>
+</div>
+<p class="muted" style="margin-top:0">Products that have hit their minimum level and need to be re-ordered, grouped by category. "Order Qty" refills stock to twice the minimum.</p>
+<div class="panel-grid">
+  {% for cat_name, items in required_by_category.items() %}
+  <div class="panel danger-panel">
+    <h3>{{ icons.get(cat_name, '📁') }} {{ cat_name }}</h3>
+    {% for p in items %}
+    <div class="restock-item">
+      <div class="info"><b>{{ p.name }}</b><small>In stock: {{ p.quantity }} · Minimum: {{ p.min_stock }}</small></div>
+      <span class="need">Order {{ p.required_qty }}</span>
+    </div>
+    {% endfor %}
+    <a class="btn small" style="margin-top:14px" href="{{ url_for('new_purchase') }}">📥 Go to Purchase</a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel" style="margin-top:28px"><b>✅ Everything is well stocked</b><p class="muted" style="margin:4px 0 0">No products are below their minimum level.</p></div>
+{% endif %}
 {% endblock %}

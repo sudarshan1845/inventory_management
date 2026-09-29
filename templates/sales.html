@@ -1,23 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Sales{% endblock %}
+{% block title %}Sales History{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h1>Sales</h1>
+  <div>
+    <h1>🧾 Sales History</h1>
+    <p class="page-sub">Every bill, what was sold, who sold it and the profit made</p>
+  </div>
   <div>
     <a class="btn" href="{{ url_for('new_sale') }}">+ Make Sale</a>
     <a class="btn secondary" href="{{ url_for('export_sales') }}">⬇ Export CSV</a>
   </div>
 </div>
+
+<div class="stats-grid">
+  <div class="stat-card accent-blue"><div class="stat-icon">🧾</div><span class="stat-label">Bills</span><span class="stat-value">{{ summary.count }}</span></div>
+  <div class="stat-card accent-green"><div class="stat-icon">💵</div><span class="stat-label">Revenue</span><span class="stat-value">₹{{ "{:,.2f}".format(summary.revenue) }}</span></div>
+  <div class="stat-card accent-purple"><div class="stat-icon">📦</div><span class="stat-label">Units Sold</span><span class="stat-value">{{ summary.units }}</span></div>
+  <div class="stat-card accent-orange"><div class="stat-icon">📈</div><span class="stat-label">Est. Profit</span><span class="stat-value">₹{{ "{:,.2f}".format(summary.profit) }}</span></div>
+  <div class="stat-card accent-red"><div class="stat-icon">🧮</div><span class="stat-label">Avg. Bill</span><span class="stat-value">₹{{ "{:,.2f}".format(summary.avg) }}</span></div>
+</div>
+
+<form class="filter-bar" method="GET">
+  <input type="text" name="q" placeholder="Search invoice or customer..." value="{{ q }}">
+  <label class="muted">From</label><input type="date" name="from" value="{{ d_from }}">
+  <label class="muted">To</label><input type="date" name="to" value="{{ d_to }}">
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn secondary" href="{{ url_for('sales') }}">Reset</a>
+</form>
+
+<div class="table-scroll">
 <table class="data-table">
-  <tr><th>Invoice No</th><th>Customer</th><th>Total</th><th>Date</th><th>Invoice</th></tr>
+  <tr><th>Invoice</th><th>Date & Time</th><th>Customer</th><th>Items Sold</th><th>Units</th><th>Total</th><th>Profit</th><th>Sold By</th><th></th></tr>
   {% for s in sales %}
   <tr>
-    <td>{{ s.invoice_no }}</td><td>{{ s.customer_name }}</td><td>₹{{ s.total_amount }}</td>
-    <td>{{ s.created_at }}</td>
-    <td><a href="{{ url_for('invoice', sale_id=s.id) }}">🧾 View</a></td>
+    <td><b>{{ s.invoice_no }}</b></td>
+    <td>{{ s.created_at.strftime('%d %b %Y, %I:%M %p') }}</td>
+    <td>{{ s.customer_name }}</td>
+    <td style="max-width:280px">{{ s.items_summary or '-' }}</td>
+    <td>{{ s.units }}</td>
+    <td><b>₹{{ s.total_amount }}</b></td>
+    <td class="{{ 'danger' if s.profit < 0 else '' }}" style="color:var(--success)">₹{{ "{:,.2f}".format(s.profit|float) }}</td>
+    <td>{{ s.sold_by or '-' }}</td>
+    <td><a class="btn small secondary" href="{{ url_for('invoice', sale_id=s.id) }}">View Bill</a></td>
   </tr>
   {% else %}
-  <tr><td colspan="5" class="muted">No sales recorded yet.</td></tr>
+  <tr><td colspan="9" class="muted">No sales found.</td></tr>
   {% endfor %}
 </table>
+</div>
 {% endblock %}

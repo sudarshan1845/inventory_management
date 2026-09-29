@@ -111,6 +111,33 @@ def logout():
     return redirect(url_for("login"))
 
 
+# ---------------------- CHART DATA HELPERS ----------------------
+def chart_data():
+    """All numbers used by the dashboard/report charts (plain floats/ints/strings)."""
+    rows = query("""SELECT DATE(created_at) d, SUM(total_amount) total FROM sales
+                     WHERE created_at >= %s GROUP BY DATE(created_at)""",
+                 (date.today() - timedelta(days=6),), fetch=True)
+    days = {str(date.today() - timedelta(days=i)): 0.0 for i in range(6, -1, -1)}
+    for r in rows:
+        days[str(r["d"])] = float(r["total"])
+    stock = query("""SELECT c.name, COALESCE(SUM(p.quantity),0) qty,
+                      COALESCE(SUM(p.quantity*p.price),0) val
+                      FROM categories c LEFT JOIN products p ON p.category_id=c.id
+                      GROUP BY c.id HAVING qty > 0 ORDER BY qty DESC""", fetch=True)
+    top = query("""SELECT p.name, SUM(si.quantity) sold FROM sale_items si
+                    JOIN products p ON si.product_id=p.id
+                    GROUP BY p.id ORDER BY sold DESC LIMIT 5""", fetch=True)
+    return {
+        "sales_labels": [d[5:] for d in days.keys()],
+        "sales_values": list(days.values()),
+        "cat_labels": [r["name"] for r in stock],
+        "cat_qty": [int(r["qty"]) for r in stock],
+        "cat_val": [float(r["val"]) for r in stock],
+        "top_labels": [r["name"] for r in top],
+        "top_values": [int(r["sold"]) for r in top],
+    }
+
+
 # ---------------------- DASHBOARD ----------------------
 @app.route("/dashboard")
 @login_required
@@ -139,7 +166,7 @@ def dashboard():
                            stock_value=stock_value, total_sales_today=total_sales_today,
                            low_stock=low_stock, expiring_soon=expiring_soon,
                            todays_sales=todays_sales, grocery_expiry=grocery_expiry,
-                           today=date.today())
+                           today=date.today(), charts=chart_data())
 
 
 # ---------------------- PRODUCTS ----------------------
@@ -268,14 +295,43 @@ def delete_supplier(sid):
 @app.route("/sales")
 @login_required
 def sales():
-    rows = query("SELECT * FROM sales ORDER BY id DESC", fetch=True)
-    return render_template("sales.html", sales=rows)
+    q = request.args.get("q", "").strip()
+    d_from = request.args.get("from", "")
+    d_to = request.args.get("to", "")
+    sql = """SELECT s.*, u.username AS sold_by,
+             (SELECT COALESCE(SUM(quantity),0) FROM sale_items WHERE sale_id=s.id) AS units,
+             (SELECT GROUP_CONCAT(CONCAT(p.name,' x',si.quantity) SEPARATOR ', ')
+                FROM sale_items si JOIN products p ON p.id=si.product_id
+                WHERE si.sale_id=s.id) AS items_summary,
+             (SELECT COALESCE(SUM((si.price-p.cost_price)*si.quantity),0)
+                FROM sale_items si JOIN products p ON p.id=si.product_id
+                WHERE si.sale_id=s.id) AS profit
+             FROM sales s LEFT JOIN users u ON s.user_id=u.id
+             WHERE (s.invoice_no LIKE %s OR s.customer_name LIKE %s)"""
+    params = [f"%{q}%", f"%{q}%"]
+    if d_from:
+        sql += " AND DATE(s.created_at) >= %s"
+        params.append(d_from)
+    if d_to:
+        sql += " AND DATE(s.created_at) <= %s"
+        params.append(d_to)
+    sql += " ORDER BY s.id DESC"
+    rows = query(sql, params, fetch=True)
+    revenue = sum(float(r["total_amount"]) for r in rows)
+    units = sum(int(r["units"]) for r in rows)
+    profit = sum(float(r["profit"]) for r in rows)
+    summary = {"count": len(rows), "revenue": revenue, "units": units, "profit": profit,
+               "avg": (revenue / len(rows)) if rows else 0}
+    return render_template("sales.html", sales=rows, summary=summary,
+                           q=q, d_from=d_from, d_to=d_to)
 
 
 @app.route("/sales/new", methods=["GET", "POST"])
 @login_required
 def new_sale():
-    products_list = query("SELECT * FROM products WHERE quantity > 0 ORDER BY name", fetch=True)
+    products_list = query("""SELECT p.*, c.name AS category_name FROM products p
+                              LEFT JOIN categories c ON p.category_id=c.id
+                              WHERE p.quantity > 0 ORDER BY p.name""", fetch=True)
     if request.method == "POST":
         product_ids = request.form.getlist("product_id[]")
         quantities = request.form.getlist("quantity[]")
@@ -324,7 +380,9 @@ def new_sale():
 @app.route("/invoice/<int:sale_id>")
 @login_required
 def invoice(sale_id):
-    sale = query("SELECT * FROM sales WHERE id=%s", (sale_id,), fetch=True, one=True)
+    sale = query("""SELECT s.*, u.username AS staff_name FROM sales s
+                     LEFT JOIN users u ON s.user_id=u.id WHERE s.id=%s""",
+                (sale_id,), fetch=True, one=True)
     items = query("""SELECT si.*, p.name FROM sale_items si
                       JOIN products p ON si.product_id=p.id WHERE si.sale_id=%s""",
                   (sale_id,), fetch=True)
@@ -346,6 +404,11 @@ def purchases():
 def new_purchase():
     products_list = query("SELECT * FROM products ORDER BY name", fetch=True)
     suppliers_list = query("SELECT * FROM suppliers ORDER BY name", fetch=True)
+    low_stock = query("""SELECT p.*, s.name AS supplier_name FROM products p
+                          LEFT JOIN suppliers s ON p.supplier_id=s.id
+                          WHERE p.quantity <= p.min_stock ORDER BY p.quantity ASC""", fetch=True)
+    for p in low_stock:
+        p["required_qty"] = max(p["min_stock"] * 2 - p["quantity"], 1)
     if request.method == "POST":
         product_ids = request.form.getlist("product_id[]")
         quantities = request.form.getlist("quantity[]")
@@ -380,14 +443,15 @@ def new_purchase():
         flash("Purchase recorded. Stock updated.", "success")
         return redirect(url_for("purchases"))
 
-    return render_template("purchase_new.html", products=products_list, suppliers=suppliers_list)
+    return render_template("purchase_new.html", products=products_list,
+                           suppliers=suppliers_list, low_stock=low_stock)
 
 
 # ---------------------- REPORTS / CHARTS ----------------------
 @app.route("/reports")
 @login_required
 def reports():
-    return render_template("reports.html")
+    return render_template("reports.html", charts=chart_data())
 
 
 @app.route("/api/reports/sales-last-7-days")
@@ -407,7 +471,7 @@ def api_sales_last7():
 def api_stock_by_category():
     rows = query("""SELECT c.name, COALESCE(SUM(p.quantity),0) qty FROM categories c
                      LEFT JOIN products p ON p.category_id=c.id GROUP BY c.id""", fetch=True)
-    return jsonify({"labels": [r["name"] for r in rows], "values": [r["qty"] for r in rows]})
+    return jsonify({"labels": [r["name"] for r in rows], "values": [int(r["qty"]) for r in rows]})
 
 
 @app.route("/api/reports/top-products")
