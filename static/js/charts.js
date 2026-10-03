@@ -1,6 +1,6 @@
 /* Tiny dependency-free SVG charts (no CDN, no internet needed). */
 (function () {
-  const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6'];
+  const COLORS = ['#ea580c', '#991b1b', '#78350f', '#f59e0b', '#16a34a', '#c2410c', '#a16207', '#dc2626', '#92400e', '#fb923c'];
   const NS = 'http://www.w3.org/2000/svg';
 
   function svg(tag, attrs, parent) {

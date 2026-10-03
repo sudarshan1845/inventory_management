@@ -12,10 +12,15 @@
   <div class="form-card wide">
     <div class="form-row">
       <div><label>Customer Name (optional)</label><input type="text" name="customer_name" placeholder="Walk-in Customer"></div>
-      <div><label>Quick add product</label>
-        <select id="quick" onchange="quickAdd(this)">
-          <option value="">🔍 Choose a product to add…</option>
-        </select>
+      <div><label>Add product by category</label>
+        <div style="display:flex; gap:10px;">
+          <select id="cat-select" onchange="fillProductsForCategory()" style="flex:1">
+            <option value="">📂 Choose a category…</option>
+          </select>
+          <select id="quick" onchange="quickAdd(this)" disabled style="flex:1">
+            <option value="">Select category first</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -41,7 +46,25 @@
 const PRODUCTS = {{ products|tojson }};
 const tbody = document.querySelector('#line-items tbody');
 const quick = document.getElementById('quick');
-PRODUCTS.forEach(p => quick.insertAdjacentHTML('beforeend', `<option value="${p.id}">${p.name} — ₹${p.price} (${p.quantity} left)</option>`));
+const catSelect = document.getElementById('cat-select');
+
+// Build the category dropdown from the products' own categories
+const cats = [...new Set(PRODUCTS.map(p => p.category_name || 'Uncategorized'))].sort();
+cats.forEach(c => catSelect.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`));
+
+function fillProductsForCategory() {
+  const cat = catSelect.value;
+  quick.innerHTML = '';
+  if (!cat) {
+    quick.disabled = true;
+    quick.insertAdjacentHTML('beforeend', '<option value="">Select category first</option>');
+    return;
+  }
+  quick.disabled = false;
+  quick.insertAdjacentHTML('beforeend', '<option value="">🔍 Choose a product…</option>');
+  PRODUCTS.filter(p => (p.category_name || 'Uncategorized') === cat)
+    .forEach(p => quick.insertAdjacentHTML('beforeend', `<option value="${p.id}">${p.name} — ₹${p.price} (${p.quantity} left)</option>`));
+}
 
 function addRow(pid) {
   const row = document.createElement('tr');

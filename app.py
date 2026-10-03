@@ -209,6 +209,38 @@ def add_product():
                            product=None)
 
 
+@app.route("/products/<int:pid>")
+@login_required
+def product_detail(pid):
+    product = query("""SELECT p.*, c.name AS category_name, s.name AS supplier_name,
+                        s.contact AS supplier_contact, s.email AS supplier_email
+                        FROM products p
+                        LEFT JOIN categories c ON p.category_id=c.id
+                        LEFT JOIN suppliers s ON p.supplier_id=s.id
+                        WHERE p.id=%s""", (pid,), fetch=True, one=True)
+    if not product:
+        flash("Product not found.", "error")
+        return redirect(url_for("products"))
+
+    sales_history = query(
+        """SELECT si.quantity, si.price, s.invoice_no, s.created_at, s.customer_name
+           FROM sale_items si JOIN sales s ON si.sale_id=s.id
+           WHERE si.product_id=%s ORDER BY s.created_at DESC LIMIT 10""", (pid,), fetch=True)
+    purchase_history = query(
+        """SELECT pi.quantity, pi.cost_price, pu.created_at, sup.name AS supplier_name
+           FROM purchase_items pi JOIN purchases pu ON pi.purchase_id=pu.id
+           LEFT JOIN suppliers sup ON pu.supplier_id=sup.id
+           WHERE pi.product_id=%s ORDER BY pu.created_at DESC LIMIT 10""", (pid,), fetch=True)
+
+    totals = query(
+        """SELECT COALESCE(SUM(si.quantity),0) units_sold,
+                  COALESCE(SUM(si.quantity*si.price),0) revenue
+           FROM sale_items si WHERE si.product_id=%s""", (pid,), fetch=True, one=True)
+
+    return render_template("product_detail.html", p=product, sales_history=sales_history,
+                           purchase_history=purchase_history, totals=totals, today=date.today())
+
+
 @app.route("/products/edit/<int:pid>", methods=["GET", "POST"])
 @login_required
 def edit_product(pid):

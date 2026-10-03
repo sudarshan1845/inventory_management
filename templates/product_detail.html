@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ p.name }}</h1>
+    <p class="page-sub">{{ p.category_name or 'Uncategorized' }} · Supplied by {{ p.supplier_name or '-' }}</p>
+  </div>
+  <div>
+    <a class="btn secondary" href="{{ url_for('edit_product', pid=p.id) }}">✏️ Edit Product</a>
+    <a class="btn secondary" href="{{ url_for('products') }}">← Back to Products</a>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card accent-blue"><div class="stat-icon">📦</div><span class="stat-label">Current Stock</span><span class="stat-value">{{ p.quantity }}</span></div>
+  <div class="stat-card accent-orange"><div class="stat-icon">💰</div><span class="stat-label">Selling Price</span><span class="stat-value">₹{{ p.price }}</span></div>
+  <div class="stat-card accent-green"><div class="stat-icon">🏷️</div><span class="stat-label">Cost Price</span><span class="stat-value">₹{{ p.cost_price }}</span></div>
+  <div class="stat-card accent-red"><div class="stat-icon">📈</div><span class="stat-label">Units Sold (all time)</span><span class="stat-value">{{ totals.units_sold }}</span></div>
+</div>
+
+<div class="panel-grid">
+  <div class="panel">
+    <h3>📋 Product Details</h3>
+    <table>
+      <tr><td class="muted">Category</td><td>{{ p.category_name or '-' }}</td></tr>
+      <tr><td class="muted">Supplier</td><td>{{ p.supplier_name or '-' }}</td></tr>
+      <tr><td class="muted">Supplier Contact</td><td>{{ p.supplier_contact or '-' }}</td></tr>
+      <tr><td class="muted">Supplier Email</td><td>{{ p.supplier_email or '-' }}</td></tr>
+      <tr><td class="muted">Minimum Stock Level</td><td>{{ p.min_stock }}</td></tr>
+      <tr><td class="muted">Stock Status</td>
+        <td>{% if p.quantity <= p.min_stock %}<span class="badge low">Low Stock</span>{% else %}<span class="badge ok">In Stock</span>{% endif %}</td></tr>
+      <tr><td class="muted">Expiry Date</td>
+        <td>{% if p.expiry_date %}{{ p.expiry_date }}
+          {% if p.expiry_date < today %}<span class="badge low">Expired</span>{% endif %}
+        {% else %}Not applicable{% endif %}</td></tr>
+      <tr><td class="muted">Added On</td><td>{{ p.created_at.strftime('%d %b %Y') }}</td></tr>
+      <tr><td class="muted">Total Revenue Generated</td><td><b>₹{{ "{:,.2f}".format(totals.revenue|float) }}</b></td></tr>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>🧾 Recent Sales</h3>
+    {% if sales_history %}
+    <table>
+      <tr><th>Invoice</th><th>Customer</th><th>Qty</th><th>Price</th><th>Date</th></tr>
+      {% for s in sales_history %}
+      <tr>
+        <td><a href="#">{{ s.invoice_no }}</a></td>
+        <td>{{ s.customer_name }}</td>
+        <td>{{ s.quantity }}</td>
+        <td>₹{{ s.price }}</td>
+        <td>{{ s.created_at.strftime('%d %b %Y') }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">This product hasn't been sold yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <h3>📥 Recent Purchases (Stock In)</h3>
+  {% if purchase_history %}
+  <table>
+    <tr><th>Supplier</th><th>Qty Added</th><th>Cost Price</th><th>Date</th></tr>
+    {% for pu in purchase_history %}
+    <tr>
+      <td>{{ pu.supplier_name or '-' }}</td>
+      <td>{{ pu.quantity }}</td>
+      <td>₹{{ pu.cost_price }}</td>
+      <td>{{ pu.created_at.strftime('%d %b %Y') }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No purchase history for this product yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
